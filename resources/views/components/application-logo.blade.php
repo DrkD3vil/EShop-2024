@@ -1,1 +1,1 @@
-<img src="{{ asset('logo/jojobi.png') }}" alt="" srcset="">
+<img src="{{ asset('logo/jojobi.png') }}" alt="" srcset="" style="width: 150px;">
