@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
@@ -33,50 +34,79 @@ class AdminController extends Controller
 
 
     public function update(Request $request, $id)
-{
-    $admin = User::findOrFail($id);
+    {
+        $admin = User::findOrFail($id);
 
-    // Validate request data
-    $validatedData = $request->validate([
-        'username' => 'nullable|string|max:255',
-        'name' => 'nullable|string|max:255',
-        'email' => 'nullable|email|max:255',
-        'phone' => 'nullable|string|max:20',
-        'address' => 'nullable|string|max:500',
-        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Image validation
-    ]);
+        // Validate request data
+        $validatedData = $request->validate([
+            'username' => 'nullable|string|max:255',
+            'name' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:500',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Image validation
+        ]);
 
-    // Update fields if present
-    $admin->fill($validatedData);
+        // Update fields if present
+        $admin->fill($validatedData);
 
-    // Handle image upload
-    if ($request->hasFile('image')) {
-        // Delete the old image if it exists
-        if ($admin->image) {
-            Storage::delete('public/' . $admin->image);
+        // Handle image upload
+        if ($request->hasFile('image')) {
+            // Delete the old image if it exists
+            if ($admin->image) {
+                Storage::delete('public/' . $admin->image);
+            }
+
+            // Get the user's full name and sanitize it for use as a file name
+            // Change full_name to name or your specific field if needed
+            $fullName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $admin->name);
+
+            // Get the original extension of the uploaded image
+            $extension = $request->file('image')->getClientOriginalExtension();
+
+            // Create a new file name using the user's full name and the extension
+            $fileName = $fullName . '.' . $extension;
+
+            // Store the new image in a profiles folder with the custom file name
+            $imagePath = $request->file('image')->storeAs('profiles', $fileName, 'public');
+
+            // Save the relative path to the database
+            $admin->image = $imagePath;
         }
 
-        // Get the user's full name and sanitize it for use as a file name
-        // Change full_name to name or your specific field if needed
-        $fullName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $admin->name);
+        // Save the updated user data
+        $admin->save();
 
-        // Get the original extension of the uploaded image
-        $extension = $request->file('image')->getClientOriginalExtension();
-
-        // Create a new file name using the user's full name and the extension
-        $fileName = $fullName . '.' . $extension;
-
-        // Store the new image in a profiles folder with the custom file name
-        $imagePath = $request->file('image')->storeAs('profiles', $fileName, 'public');
-
-        // Save the relative path to the database
-        $admin->image = $imagePath;
+        return redirect()->route('admin.profile')->with('success', 'Profile updated successfully!');
     }
 
-    // Save the updated user data
-    $admin->save();
 
-    return redirect()->route('admin.profile')->with('success', 'Profile updated successfully!');
-}
+    // Change Password
+    public function ChangePassword()
+    {
+        return view('admin.pages.admin_changePassword');
+    }
+    // Handle the Password Update Logic
+    public function UpdatePassword(Request $request)
+    {
+        // Validate Input Fields
+        $validatedData = $request->validate([
+            'oldpassword' => 'required',
+            'newpassword' => 'required|min:8',
+            'confirmpassword' => 'required|same:newpassword',
+        ]);
 
+        // Verify Old Password
+        if (!Hash::check($validatedData['oldpassword'], Auth::user()->password)) {
+            return redirect()->back()->with('error', 'Old password does not match');
+        }
+
+        // Update Password
+        Auth::user()->update(['password' => Hash::make($validatedData['newpassword'])]);
+
+        // Success Response
+        return redirect()->route('admin.profile')->with('success', 'Password updated successfully!');
+    }
+
+    
 }

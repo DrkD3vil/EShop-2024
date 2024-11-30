@@ -20,10 +20,12 @@ Route::middleware('auth')->group(function () {
 });
 
 // Admin all route
-Route::controller(AdminController::class)->group(function(){
+Route::controller(AdminController::class)->group(function () {
     Route::get('/admin/logout', 'destroy')->name('admin.logout');
     Route::get('/admin/profile', 'profile')->name('admin.profile');
     Route::put('/update/{id}', [AdminController::class, 'update'])->name('admin.update'); // Update profile
+    Route::get('/change/password', 'ChangePassword')->name('change.password');
+    Route::post('/update/password', 'UpdatePassword')->name('update.password');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
